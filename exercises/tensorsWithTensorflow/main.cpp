@@ -1,4 +1,4 @@
-#include <iostream>
+#include  <iostream>
 #include <tensorflow/core/framework/tensor.h>
 
 
@@ -61,7 +61,9 @@ int main() {
     // Scalar
     tensorflow::Tensor scalar_tensor(tensorflow::DT_FLOAT, tensorflow::TensorShape({1}));
     auto scalar_data = scalar_tensor.scalar<float>();
-    scalar_data() = 3.0f;
+    scalar_data() = 3.2f;
+    std::cout << scalar_tensor << std::endl;
+
 
 
     return 0;
