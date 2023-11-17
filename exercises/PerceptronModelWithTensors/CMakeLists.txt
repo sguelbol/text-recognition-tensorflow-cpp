@@ -5,7 +5,8 @@ set(CMAKE_CXX_STANDARD 17)
 
 find_package(TensorFlow REQUIRED)
 
-add_executable(PerceptronModelWithTensors main.cpp)
+add_executable(PerceptronModelWithTensors main.cpp
+)
 
 target_include_directories(PerceptronModelWithTensors PRIVATE ${TensorFlow_INCLUDE_DIRS})
 

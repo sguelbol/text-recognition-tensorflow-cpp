@@ -2,6 +2,8 @@
 #include <tensorflow/core/framework/tensor.h>
 #include <tensorflow/cc/ops/math_ops.h>
 #include <tensorflow/cc/client/client_session.h>
+#include <tensorflow/cc/ops/array_ops.h>
+
 
 
 void initInput(std::vector<std::vector<float>> inputData);
@@ -21,6 +23,7 @@ tensorflow::Tensor input(tensorflow::DT_FLOAT, tensorflow::TensorShape({4, 3}));
 tensorflow::Tensor weights(tensorflow::DT_FLOAT, tensorflow::TensorShape({3, 1}));
 tensorflow::Tensor expectedOutput(tensorflow::DT_FLOAT, tensorflow::TensorShape({4, 1}));
 tensorflow::Tensor learningRate(tensorflow::DT_FLOAT, tensorflow::TensorShape({1}));
+
 
 int main() {
     tensorflow::Scope root = tensorflow::Scope::NewRootScope();
@@ -45,16 +48,16 @@ int main() {
 
     initLearningRate(0.3);
 
+    auto input_placeholder = tensorflow::ops::Placeholder(root, tensorflow::DT_FLOAT);
+    tensorflow::ClientSession session1(root);
+    auto matMul = tensorflow::ops::MatMul(root, input_placeholder, weights);
+
     while (true) {
         std::cout << "Weights: " << weights << std::endl;
-        tensorflow::ClientSession session1(root);
-        auto matMul = tensorflow::ops::MatMul(root, input, weights);
+
+
         std::vector<tensorflow::Tensor> output;
-        tensorflow::Status run_status1 = session1.Run({}, {matMul}, {}, &output);
-        if (!run_status1.ok()) {
-            std::cerr << "Error running session 1: " << run_status1.ToString() << std::endl;
-            // Handle the error
-        }
+        TF_CHECK_OK(session1.Run({ {input_placeholder, { inputData[0], {3, 4} } } }, {matMul}, &output));
         auto tensor_y = threshold(output[0]);
         std::cout << "Result of y: " << tensor_y << std::endl;
 
@@ -69,11 +72,7 @@ int main() {
         tensorflow::ClientSession session2(root);
         auto sub = tensorflow::ops::Subtract(root, expectedOutput, tensor_y);
         std::vector<tensorflow::Tensor> w;
-        tensorflow::Status run_status2 = session2.Run({}, {sub}, {}, &w); // Error
-        if (!run_status2.ok()) {
-            std::cerr << "Error running session 2: " << run_status2.ToString() << std::endl;
-            // Handle the error
-        }
+        TF_CHECK_OK(session2.Run({}, {sub}, {}, &w)); // Error
         auto tensor_error = w[0];
         std::cout << "Error: " << tensor_error << std::endl;
 
@@ -81,11 +80,7 @@ int main() {
         tensorflow::ClientSession session3(root);
         auto delta_computation = tensorflow::ops::Multiply(root, tensorflow::ops::MatMul(root, input, tensor_error, tensorflow::ops::MatMul::TransposeA(true)), learningRate);
         std::vector<tensorflow::Tensor> delta;
-        tensorflow::Status run_status3 = session3.Run({}, {delta_computation}, {}, &delta);
-        if (!run_status3.ok()) {
-            std::cerr << "Error running session 2: " << run_status3.ToString() << std::endl;
-            // Handle the error
-        }
+        TF_CHECK_OK(session3.Run({}, {delta_computation}, {}, &delta));
         auto tensor_product = delta[0];
         std::cout << "Delta: " << tensor_product << std::endl;
 
@@ -93,7 +88,7 @@ int main() {
         tensorflow::ClientSession session4(root);
         auto update_weights_computation = tensorflow::ops::Add(root, weights, tensor_product);
         std::vector<tensorflow::Tensor> updatedWeights;
-        session4.Run({}, {update_weights_computation}, {}, &updatedWeights);
+        TF_CHECK_OK(session4.Run({}, {update_weights_computation}, {}, &updatedWeights));
         auto updatedWeights2 = updatedWeights[0];
         std::cout << "Updated_weights " << updatedWeights2 << std::endl;
         weights = updatedWeights2;
