@@ -1,0 +1,4 @@
+cmake-build-debug/*
+/exercises/*/cmake-build-debug
+debug.log
+
