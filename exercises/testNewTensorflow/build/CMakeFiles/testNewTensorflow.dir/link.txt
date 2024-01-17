@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/testNewTensorflow.dir/main.cpp.o -o testNewTensorflow  -Wl,-rpath,/usr/local/lib /usr/local/lib/libtensorflow_cc.so 
