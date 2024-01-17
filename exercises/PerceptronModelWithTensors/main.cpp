@@ -1,8 +1,9 @@
 #include <iostream>
-#include <tensorflow/core/framework/tensor.h>
-#include <tensorflow/cc/ops/math_ops.h>
+#include <core/framework/tensor.h>
+
 #include <tensorflow/cc/client/client_session.h>
 #include <tensorflow/cc/ops/array_ops.h>
+#include <tensorflow/core/framework/stats_aggregator.h>
 
 
 
@@ -39,6 +40,10 @@ int main() {
                                                   {1}};
     initWeights(weightData);
 
+    auto tg = tensorflow::Input::Initializer({1, 2, 3});
+    //https://stackoverflow.com/questions/39148671/how-to-fill-a-tensor-in-c
+    std::cout << "initializer" << tg.tensor << std::endl;
+
     //and-function
     std::vector<std::vector<float>> expectedOutputData = {{0},
                                                           {0},
@@ -48,16 +53,37 @@ int main() {
 
     initLearningRate(0.3);
 
-    auto input_placeholder = tensorflow::ops::Placeholder(root, tensorflow::DT_FLOAT);
+    auto weights_placeholder = tensorflow::ops::Placeholder(root, tensorflow::DT_FLOAT);
+
     tensorflow::ClientSession session1(root);
-    auto matMul = tensorflow::ops::MatMul(root, input_placeholder, weights);
+
+    /*auto matMul = tensorflow::ops::MatMul(root, input_placeholder, weights);
+    auto sub = tensorflow::ops::Subtract(root, expectedOutput, matMul);
+    std::vector<tensorflow::Tensor> w;
+    auto input2 = tensorflow::Input({{1.0f, 0.0f, 0.0f},
+                                     {1.0f, 0.0f, 1.0f},
+                                     {1.0f, 1.0f, 0.0f},
+                                     {1.0f, 1.0f, 1.0f}});
+    TF_CHECK_OK(session1.Run({ {input_placeholder, input}} , {sub}, &w));
+    auto tensor_error = w[0];
+    std::cout << "Error: " << tensor_error << std::endl;
+    //input_placeholder.operator ::tensorflow::Input(;
+
+
+    auto a = tensorflow::ops::Placeholder(root, tensorflow::DT_INT32);
+    auto c = tensorflow::ops::Add(root, a, {41});
+    std::vector<tensorflow::Tensor> outputs;
+    session1.Run({ {a, {1} } }, {c}, &outputs);
+    std::cout << "R: " << outputs[0] << std::endl; */
 
     while (true) {
         std::cout << "Weights: " << weights << std::endl;
 
-
         std::vector<tensorflow::Tensor> output;
-        TF_CHECK_OK(session1.Run({ {input_placeholder, { inputData[0], {3, 4} } } }, {matMul}, &output));
+        auto matMul = tensorflow::ops::MatMul(root, input, weights_placeholder);
+        tensorflow::ClientSession session1(root);
+
+        TF_CHECK_OK(session1.Run({{weights_placeholder, weights}}, {matMul}, &output));
         auto tensor_y = threshold(output[0]);
         std::cout << "Result of y: " << tensor_y << std::endl;
 
@@ -69,26 +95,16 @@ int main() {
         }
 
         //Compute error
-        tensorflow::ClientSession session2(root);
         auto sub = tensorflow::ops::Subtract(root, expectedOutput, tensor_y);
-        std::vector<tensorflow::Tensor> w;
-        TF_CHECK_OK(session2.Run({}, {sub}, {}, &w)); // Error
-        auto tensor_error = w[0];
-        std::cout << "Error: " << tensor_error << std::endl;
 
         //Compute delta
-        tensorflow::ClientSession session3(root);
-        auto delta_computation = tensorflow::ops::Multiply(root, tensorflow::ops::MatMul(root, input, tensor_error, tensorflow::ops::MatMul::TransposeA(true)), learningRate);
-        std::vector<tensorflow::Tensor> delta;
-        TF_CHECK_OK(session3.Run({}, {delta_computation}, {}, &delta));
-        auto tensor_product = delta[0];
-        std::cout << "Delta: " << tensor_product << std::endl;
+        auto delta_computation = tensorflow::ops::Multiply(root, tensorflow::ops::MatMul(root, input, sub, tensorflow::ops::MatMul::TransposeA(true)), learningRate);
 
         //Update weights
-        tensorflow::ClientSession session4(root);
-        auto update_weights_computation = tensorflow::ops::Add(root, weights, tensor_product);
+        tensorflow::ClientSession session2(root);
+        auto update_weights_computation = tensorflow::ops::Add(root, weights, delta_computation);
         std::vector<tensorflow::Tensor> updatedWeights;
-        TF_CHECK_OK(session4.Run({}, {update_weights_computation}, {}, &updatedWeights));
+        TF_CHECK_OK(session2.Run({}, {update_weights_computation}, {}, &updatedWeights));
         auto updatedWeights2 = updatedWeights[0];
         std::cout << "Updated_weights " << updatedWeights2 << std::endl;
         weights = updatedWeights2;
