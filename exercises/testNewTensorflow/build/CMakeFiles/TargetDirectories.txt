@@ -1,3 +1,0 @@
-/home/sguelbol/CodeContext/text_recognition_eink/exercises/testNewTensorflow/build/CMakeFiles/testNewTensorflow.dir
-/home/sguelbol/CodeContext/text_recognition_eink/exercises/testNewTensorflow/build/CMakeFiles/edit_cache.dir
-/home/sguelbol/CodeContext/text_recognition_eink/exercises/testNewTensorflow/build/CMakeFiles/rebuild_cache.dir
