@@ -1,4 +1,5 @@
-cmake-build-debug/*
-/exercises/*/cmake-build-debug
+cmake-build-debug/
 debug.log
 
+.idea
+/paintApp/build-text_recognition_eink-Desktop_Qt_6_5_0_MinGW_64_bit-Debug/
