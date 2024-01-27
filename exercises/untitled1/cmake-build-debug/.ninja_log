@@ -1,8 +1,0 @@
-# ninja log v5
-8	17	1689549234063532995	CMakeFiles/untitled1.dir/untitled1_autogen/mocs_compilation.cpp.o	d4dc2e38bab1a206
-1	4	0	/home/serkanguelbol/Desktop/Abschlussprojekt/text_recognition_eink/exercises/untitled1/cmake-build-debug/CMakeFiles/untitled1_autogen	a4a787ad977cf506
-1	4	0	untitled1_autogen/mocs_compilation.cpp	a4a787ad977cf506
-1	4	0	CMakeFiles/untitled1_autogen	a4a787ad977cf506
-1136	1407	1689549235451624253	untitled1	86e04cb7aab5623f
-7	1136	1689549235179606336	CMakeFiles/untitled1.dir/main.cpp.o	adbab63c2a0a569
-1	4	0	/home/serkanguelbol/Desktop/Abschlussprojekt/text_recognition_eink/exercises/untitled1/cmake-build-debug/untitled1_autogen/mocs_compilation.cpp	a4a787ad977cf506
