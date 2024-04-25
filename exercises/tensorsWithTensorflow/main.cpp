@@ -43,7 +43,7 @@ int main() {
         }
         std::cout << std::endl;
     }
-    std::cout << input_tensor << std::endl;
+    std::cout << input_tensor.DebugString() << std::endl;
 
 
     // Matrix tensor 4
@@ -55,14 +55,14 @@ int main() {
         }
     }
     std::cout << matrix_data << std::endl;
-    std::cout << matrix << std::endl;
+    std::cout << matrix.DebugString() << std::endl;
 
 
     // Scalar
     tensorflow::Tensor scalar_tensor(tensorflow::DT_FLOAT, tensorflow::TensorShape({1}));
     auto scalar_data = scalar_tensor.scalar<float>();
     scalar_data() = 3.2f;
-    std::cout << scalar_tensor << std::endl;
+    std::cout << scalar_tensor.DebugString() << std::endl;
 
 
 

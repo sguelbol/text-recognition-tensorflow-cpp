@@ -1,17 +1,17 @@
 #include <iostream>
-#include <core/framework/tensor.h>
-
+#include <tensorflow/core/framework/tensor.h>
 #include <tensorflow/cc/client/client_session.h>
 #include <tensorflow/cc/ops/array_ops.h>
+#include <tensorflow/cc/ops/math_ops.h>
 #include <tensorflow/core/framework/stats_aggregator.h>
-
-
-
-void initInput(std::vector<std::vector<float>> inputData);
 
 void initWeights(std::vector<std::vector<float>> weightData);
 
 void initExpectedOutput(std::vector<std::vector<float>> expectedOutputData);
+
+
+
+void initInput(std::vector<std::vector<float>> inputData);
 
 void initLearningRate(float learningRateData);
 
@@ -42,7 +42,7 @@ int main() {
 
     auto tg = tensorflow::Input::Initializer({1, 2, 3});
     //https://stackoverflow.com/questions/39148671/how-to-fill-a-tensor-in-c
-    std::cout << "initializer" << tg.tensor << std::endl;
+    //std::cout << "initializer" << tg.tensor.DebugString() << std::endl;
 
     //and-function
     std::vector<std::vector<float>> expectedOutputData = {{0},
@@ -77,7 +77,7 @@ int main() {
     std::cout << "R: " << outputs[0] << std::endl; */
 
     while (true) {
-        std::cout << "Weights: " << weights << std::endl;
+        //std::cout << "Weights: " << weights.DebugString() << std::endl;
 
         std::vector<tensorflow::Tensor> output;
         auto matMul = tensorflow::ops::MatMul(root, input, weights_placeholder);
@@ -85,7 +85,7 @@ int main() {
 
         TF_CHECK_OK(session1.Run({{weights_placeholder, weights}}, {matMul}, &output));
         auto tensor_y = threshold(output[0]);
-        std::cout << "Result of y: " << tensor_y << std::endl;
+        //std::cout << "Result of y: " << tensor_y.DebugString() << std::endl;
 
         if (equal(tensor_y, expectedOutput)) {
             std::cout << "fi" << std::endl;
@@ -106,7 +106,7 @@ int main() {
         std::vector<tensorflow::Tensor> updatedWeights;
         TF_CHECK_OK(session2.Run({}, {update_weights_computation}, {}, &updatedWeights));
         auto updatedWeights2 = updatedWeights[0];
-        std::cout << "Updated_weights " << updatedWeights2 << std::endl;
+        //std::cout << "Updated_weights " << updatedWeights2.DebugString() << std::endl;
         weights = updatedWeights2;
     }
 }
@@ -144,7 +144,7 @@ void initInput(std::vector<std::vector<float>> inputData) {
             inputMapped(x, y) = inputData[x][y];
         }
     }
-    std::cout << "Inputs: " << input << std::endl;
+    std::cout << "Inputs: " << input.DebugString() << std::endl;
 }
 
 void initWeights(std::vector<std::vector<float>> weightData) {
@@ -152,7 +152,7 @@ void initWeights(std::vector<std::vector<float>> weightData) {
     for (int x = 0; x < 3; x++) {
         weightsMapped(x, 0) = weightData[x][0];
     }
-    std::cout << "Weights: " << weights << std::endl;
+    std::cout << "Weights: " << weights.DebugString() << std::endl;
 }
 
 void initExpectedOutput(std::vector<std::vector<float>> expectedOutputData) {
@@ -160,12 +160,12 @@ void initExpectedOutput(std::vector<std::vector<float>> expectedOutputData) {
     for (int x = 0; x < 4; x++) {
         expectedOutputsMapped(x, 0) = expectedOutputData[x][0];
     }
-    std::cout << "Expected outputs: " << expectedOutput << std::endl;
+    std::cout << "Expected outputs: " << expectedOutput.DebugString() << std::endl;
 }
 
 void initLearningRate(float learningRateData) {
     learningRate.scalar<float>()() = learningRateData;
-    std::cout << "Learning rate: " << learningRate << std::endl;
+    std::cout << "Learning rate: " << learningRate.DebugString() << std::endl;
 }
 
 
