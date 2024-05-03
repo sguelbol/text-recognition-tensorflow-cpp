@@ -1,6 +1,20 @@
 #ifndef SCRIBBLEAREA_H
 #define SCRIBBLEAREA_H
 
+#undef signals
+#define singals tf_signals
+#define quint8 tf_quint8
+#define qint8 tf_qint8
+#define quint16 tf_quint16
+#define qint16 tf_qint16
+#define qint32 tf_qint32
+#include <Model.h>
+#undef quint8
+#undef qint8
+#undef quint16
+#undef qint16
+#undef qint32
+#undef signals
 #include <QColor>
 #include <QImage>
 #include <QPoint>
@@ -14,6 +28,7 @@ public:
     std::vector<std::vector<int>> inputs;
     int x_min, x_max, y_min, y_max;
     ScribbleArea(QWidget *parent = 0);
+    void setModel(const std::shared_ptr<Model> model);
     bool openImage(const QString &fileName);
     bool saveImage(const QString &fileName, const char *fileFormat);
     void setPenColor(const QColor &newColor);
@@ -41,6 +56,7 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
 
 private:
+    std::shared_ptr<Model> model;
     void drawLineTo(const QPoint &endPoint);
     void resizeImage(QImage *image, const QSize &newSize);
     bool modified;

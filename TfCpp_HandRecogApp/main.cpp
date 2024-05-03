@@ -25,13 +25,11 @@ using namespace std;
 
 int main(int argc, char *argv[]) {
     Scope scope = Scope::NewRootScope();
-    Model mlp = Model(scope);
-    mlp.addInputLayer(784);
-    mlp.addDenseLayer(256, ActivationFunction::SOFTMAX);
-    mlp.addDenseLayer(128, ActivationFunction::RELU);
-    mlp.addDenseLayer(10, ActivationFunction::SOFTMAX);
-    mlp.buildModel();
-    mlp.printModel();
+    shared_ptr<Model> mlp = make_shared<Model>(scope);
+    mlp->addInputLayer(784);
+    mlp->addDenseLayer(10, ActivationFunction::SOFTMAX);
+    mlp->buildModel();
+    mlp->printModel();
 
     //Read MNIST
     string const path = filesystem::current_path().parent_path().generic_string();
@@ -43,23 +41,18 @@ int main(int argc, char *argv[]) {
     tie(trainingLabels, testingLabels) = MNISTReader::ReadMNISTLabelsWithTF(scope, pathTrainingsLabels, 40000, 20000);
 
 
-
-    mlp.train(trainingImages, trainingLabels, 20, 0.5f, 64);
-    mlp.validate(testingImages, testingLabels);
+    mlp->train(trainingImages, trainingLabels, 25, 0.5f, 64);
+    mlp->validate(testingImages, testingLabels);
 
     ClientSession session(scope);
     Tensor labelMNIST1 = testingLabels.SubSlice(16);
     Helper::printLabelInConsole(labelMNIST1);
 
 
-    Tensor img = testingImages.SubSlice(16);
-    Tensor tf = mlp.predict(img);
-    Tensor lk = Helper::calculatePredictedClass(tf);
-
-
     GraphLogger::logGraph(scope);
     QApplication a(argc, argv);
     MainWindow w;
+    w.addModel(move(mlp));
     w.show();
     return a.exec();
 }

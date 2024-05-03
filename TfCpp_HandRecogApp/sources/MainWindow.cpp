@@ -12,6 +12,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     setWindowTitle(tr("Scribble"));
 }
 
+void MainWindow::addModel(const std::shared_ptr<Model> model) {
+    scribbleArea->setModel(model);
+}
+
 void MainWindow::closeEvent(QCloseEvent *event) {
     if (maybeSave()) {
         event ->accept();

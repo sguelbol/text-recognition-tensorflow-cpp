@@ -12,6 +12,11 @@
 #include "../headers/ScribbleArea.h"
 #include <opencv2/opencv.hpp>
 
+#define singals tf_signals
+#include "tensorflow/core/framework/tensor.h"
+#include "../headers/Helper.h"
+#undef signals
+
 
 ScribbleArea::ScribbleArea(QWidget *parent) : QWidget(parent)
 {
@@ -24,8 +29,11 @@ ScribbleArea::ScribbleArea(QWidget *parent) : QWidget(parent)
 }
 
 
-
 // Functions
+
+void ScribbleArea::setModel(const std::shared_ptr<Model> model) {
+    this->model = std::move(model);
+}
 
 bool ScribbleArea::openImage(const QString &fileName) {
     QImage loadedImage;
@@ -133,10 +141,28 @@ void ScribbleArea::mouseReleaseEvent(QMouseEvent *event) {
             //Code here bounding box
             //boundingBox();
             //image.transformed(QTransform)
-            QImage letter = image.copy(x_min-50, y_min-50, x_max-x_min+100, y_max-y_min+100);
-            transformTo28(&letter);
-            letter.save(QString("/home/sguelbol/CodeContext/text_recognition_eink/noteApps/freeWritingApp/cmake-build-debug/untitled.png"), "PNG");
 
+            int x = x_min-50;
+            int y = y_min-50;
+            int width = x_max-x_min+100;
+            int height = y_max-y_min+100;
+            if ((x+width) > image.width()) {
+                width = image.width();
+            }
+            if (y+height > image.height()) {
+                height = image.height();
+            }
+            if (x < 0) {
+                width = 0;
+            }
+            if (y < 0) {
+                height = 0;
+            }
+            QImage letter = image.copy(x, y, width, height);
+            if (!letter.isNull()) {
+                transformTo28(&letter);
+                letter.save(QString("/home/sguelbol/CodeContext/text_recognition_eink/noteApps/freeWritingApp/cmake-build-debug/untitled.png"), "PNG");
+            }
             inputs.clear();
         }
 
@@ -147,12 +173,34 @@ void ScribbleArea::transformTo28(QImage *letter) {
     //convert QImage *letter to cv::Mat
     cv::Mat input = QImageToCvMat(*letter);
     cv::Mat src = cv::Mat(28, 28, CV_8UC3);
-    cv::cvtColor(input, src, cv::COLOR_BGR2GRAY);
+    cvtColor(input, src, cv::COLOR_BGR2GRAY);
     cv::Mat resizedImage = cv::Mat(28, 28, CV_8UC3);
 
     cv::resize(src, resizedImage, cv::Size(28, 28), 0,0,cv::INTER_AREA);
-    cv::imshow("transformed3", resizedImage);
+    imshow("resized to 28x28", resizedImage);
 
+    /*for (int i = 0; i < resizedImage.rows; ++i) {
+        for (int j = 0; j < resizedImage.cols; ++j) {
+            std::cout << static_cast<float>(resizedImage.at<uchar>(i, j)) << " ";
+        }
+        std::cout << std::endl;
+    }*/
+    tensorflow::Tensor tensorVector(tensorflow::DT_FLOAT, tensorflow::TensorShape{1, 784});
+    auto tmap = tensorVector.tensor<float, 2>();
+
+    for (int i = 0; i < resizedImage.rows; ++i) {
+        for (int j = 0; j < resizedImage.cols; ++j) {
+            tmap(0, 28*i+j) = static_cast<float>(resizedImage.at<uchar>(i, j));
+        }
+    }
+    Scope scope = Scope::NewRootScope();
+    ClientSession session(scope);
+    auto div = Sub(scope, 1.0f, Div(scope, tensorVector, {255.f}));
+    vector<Tensor> outputs;
+    TF_CHECK_OK(session.Run({div}, &outputs));
+    Tensor predicted = model->predict(outputs[0]);
+    Tensor cl = Helper::calculatePredictedClass(predicted);
+    std::cout << cl.flat<int64>() << std::endl;
     cvMatToQImage(resizedImage).save(QString("/home/sguelbol/CodeContext/text_recognition_eink/noteApps/freeWritingApp/cmake-build-debug/transformed.png"), "PNG");
 }
 

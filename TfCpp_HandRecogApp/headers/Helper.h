@@ -1,6 +1,8 @@
+#undef signals
+#define singals tf_signals
 #include "tensorflow/cc/ops/standard_ops.h"
 #include "tensorflow/core/framework/tensor.h"
-#include "tensorflow/cc/client/client_session.h"
+#undef signals
 
 #ifndef HELPER_H
 #define HELPER_H
