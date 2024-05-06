@@ -42,7 +42,7 @@ bool ScribbleArea::openImage(const QString &fileName) {
     }
     QSize newSize = loadedImage.size().expandedTo(size());
     resizeImage(&loadedImage, newSize);
-    image = loadedImage;
+    handwritingLayer = loadedImage;
     modified = false;
     update();
     return true;
@@ -50,7 +50,7 @@ bool ScribbleArea::openImage(const QString &fileName) {
 
 
 bool ScribbleArea::saveImage(const QString &fileName, const char *fileFormat) {
-    QImage visibleImage = image;
+    QImage visibleImage = handwritingLayer;
     qDebug() <<fileFormat;
     resizeImage(&visibleImage, QSize(400, 400));
     if (visibleImage.save(fileName, fileFormat)) {
@@ -70,7 +70,7 @@ void ScribbleArea::setPenWidth(int newWidth) {
 }
 
 void ScribbleArea::clearImage() {
-    image.fill(qRgb(255, 255, 255));
+    handwritingLayer.fill(qRgb(255, 255, 255));
     modified = true;
     update();
 }
@@ -126,7 +126,6 @@ void ScribbleArea::mouseMoveEvent(QMouseEvent *event) {
         if (event->pos().y() > y_max) {
             y_max = event->pos().y();
         }
-        qDebug() << "x_min: " << x_min << " x_max: " << x_max << ";  y_min:" << y_min << "y_max: " << y_max;
     }
 }
 
@@ -136,7 +135,6 @@ void ScribbleArea::mouseReleaseEvent(QMouseEvent *event) {
             drawLineTo(event->pos());
             scribbling = false;
             qDebug() << "Release";
-            //hier ausgeben
             qDebug() << inputs;
             //Code here bounding box
             //boundingBox();
@@ -146,11 +144,11 @@ void ScribbleArea::mouseReleaseEvent(QMouseEvent *event) {
             int y = y_min-50;
             int width = x_max-x_min+100;
             int height = y_max-y_min+100;
-            if ((x+width) > image.width()) {
-                width = image.width();
+            if ((x+width) > handwritingLayer.width()) {
+                width = handwritingLayer.width()-x;
             }
-            if (y+height > image.height()) {
-                height = image.height();
+            if (y+height > handwritingLayer.height()) {
+                height = handwritingLayer.height()-y;
             }
             if (x < 0) {
                 width = 0;
@@ -158,9 +156,11 @@ void ScribbleArea::mouseReleaseEvent(QMouseEvent *event) {
             if (y < 0) {
                 height = 0;
             }
-            QImage letter = image.copy(x, y, width, height);
+            QImage letter = handwritingLayer.copy(x, y, width, height);
+            //handwritingLayer.fill(Qt::white);
+            //update();
             if (!letter.isNull()) {
-                transformTo28(&letter);
+                transformTo28(x, y, width, height, &letter);
                 letter.save(QString("/home/sguelbol/CodeContext/text_recognition_eink/noteApps/freeWritingApp/cmake-build-debug/untitled.png"), "PNG");
             }
             inputs.clear();
@@ -169,8 +169,7 @@ void ScribbleArea::mouseReleaseEvent(QMouseEvent *event) {
     }
 }
 
-void ScribbleArea::transformTo28(QImage *letter) {
-    //convert QImage *letter to cv::Mat
+void ScribbleArea::transformTo28(int x, int y, int width, int height, QImage *letter) {
     cv::Mat input = QImageToCvMat(*letter);
     cv::Mat src = cv::Mat(28, 28, CV_8UC3);
     cvtColor(input, src, cv::COLOR_BGR2GRAY);
@@ -179,29 +178,37 @@ void ScribbleArea::transformTo28(QImage *letter) {
     cv::resize(src, resizedImage, cv::Size(28, 28), 0,0,cv::INTER_AREA);
     imshow("resized to 28x28", resizedImage);
 
-    /*for (int i = 0; i < resizedImage.rows; ++i) {
-        for (int j = 0; j < resizedImage.cols; ++j) {
-            std::cout << static_cast<float>(resizedImage.at<uchar>(i, j)) << " ";
-        }
-        std::cout << std::endl;
-    }*/
-    tensorflow::Tensor tensorVector(tensorflow::DT_FLOAT, tensorflow::TensorShape{1, 784});
-    auto tmap = tensorVector.tensor<float, 2>();
+    if (model) {
+        tensorflow::Tensor tensorVector(tensorflow::DT_FLOAT, tensorflow::TensorShape{1, 784});
+        auto tmap = tensorVector.tensor<float, 2>();
 
-    for (int i = 0; i < resizedImage.rows; ++i) {
-        for (int j = 0; j < resizedImage.cols; ++j) {
-            tmap(0, 28*i+j) = static_cast<float>(resizedImage.at<uchar>(i, j));
+        for (int i = 0; i < resizedImage.rows; ++i) {
+            for (int j = 0; j < resizedImage.cols; ++j) {
+                tmap(0, 28*i+j) = static_cast<float>(resizedImage.at<uchar>(i, j));
+            }
         }
+        Scope scope = Scope::NewRootScope();
+        ClientSession session(scope);
+        auto div = Sub(scope, 1.0f, Div(scope, tensorVector, {255.f}));
+        vector<Tensor> outputs;
+        TF_CHECK_OK(session.Run({div}, &outputs));
+        imageToPredict = make_shared<Tensor>(outputs[0]);
+        Helper::printImageInConsole(*imageToPredict);
+        Tensor predicted = model->predict(*imageToPredict);
+        Tensor cl = Helper::calculatePredictedClass(predicted);
+        auto int64_num = cl.flat<int64>(); // your code for flat<int64>
+        std::cout << "Predicted number " << cl.flat<int64>()(0) << std::endl;
+        QString numText = QString::number(cl.flat<int64>()(0));
+        QPainter painter(&handwritingLayer);
+        painter.setFont(QFont("Arial", 50)); // Set the font size large enough to fill the ScribbleArea
+        painter.drawText(QRect(x, y, width, height), Qt::AlignCenter, numText);
+        update();
+        cvMatToQImage(resizedImage).save(QString("/home/sguelbol/CodeContext/text_recognition_eink/noteApps/freeWritingApp/cmake-build-debug/transformed.png"), "PNG");
     }
-    Scope scope = Scope::NewRootScope();
-    ClientSession session(scope);
-    auto div = Sub(scope, 1.0f, Div(scope, tensorVector, {255.f}));
-    vector<Tensor> outputs;
-    TF_CHECK_OK(session.Run({div}, &outputs));
-    Tensor predicted = model->predict(outputs[0]);
-    Tensor cl = Helper::calculatePredictedClass(predicted);
-    std::cout << cl.flat<int64>() << std::endl;
-    cvMatToQImage(resizedImage).save(QString("/home/sguelbol/CodeContext/text_recognition_eink/noteApps/freeWritingApp/cmake-build-debug/transformed.png"), "PNG");
+}
+
+void ScribbleArea::retrain(int expectedNumber) {
+    model->retrain(*imageToPredict, expectedNumber);
 }
 
 cv::Mat ScribbleArea::QImageToCvMat(const QImage &image) {
@@ -230,7 +237,7 @@ QImage ScribbleArea::cvMatToQImage(const cv::Mat &inMat) {
 
 void ScribbleArea::boundingBox() {
     if (x_max > -1) {
-        QPainter painter(&image);
+        QPainter painter(&handwritingLayer);
         painter.setPen(QPen(QColor(Qt::red), 3, Qt::DotLine, Qt::RoundCap, Qt::RoundJoin));
         QPoint point(x_min-70, y_min-70);
         //qDebug() << x_min << " y " << y_min;
@@ -245,23 +252,23 @@ void ScribbleArea::boundingBox() {
 void ScribbleArea::paintEvent(QPaintEvent *event) {
     QPainter painter(this);
     QRect dirtyRect = event->rect();
-    painter.drawImage(dirtyRect, image, dirtyRect);
+    painter.drawImage(dirtyRect, handwritingLayer, dirtyRect);
 }
 
 
 
 void ScribbleArea::resizeEvent(QResizeEvent *event) {
-    if(width() > image.width() || height() > image.height()) {
-        int newWidth = qMax(width() + 128, image.width());
-        int newHeight = qMax(height() + 128, image.height());
-        resizeImage(&image, QSize(newWidth, newHeight));
+    if(width() > handwritingLayer.width() || height() > handwritingLayer.height()) {
+        int newWidth = qMax(width() + 128, handwritingLayer.width());
+        int newHeight = qMax(height() + 128, handwritingLayer.height());
+        resizeImage(&handwritingLayer, QSize(newWidth, newHeight));
         update();
     }
     QWidget::resizeEvent(event);
 }
 
 void ScribbleArea::drawLineTo(const QPoint &endPoint) {
-    QPainter painter(&image);
+    QPainter painter(&handwritingLayer);
     painter.setPen(QPen(myPenColor, myPenWidth, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     painter.drawLine(lastPoint, endPoint);
     modified = true;
@@ -296,11 +303,11 @@ void ScribbleArea::print() {
     if (printDialog.exec() == QDialog::Accepted) {
         QPainter painter(&printer);
         QRect rect = painter.viewport();
-        QSize size = image.size();
+        QSize size = handwritingLayer.size();
         size.scale(rect.size(), Qt::KeepAspectRatio);
         painter.setViewport(rect.x(), rect.y(), size.width(), size.height());
-        painter.setWindow(image.rect());
-        painter.drawImage(0, 0, image);
+        painter.setWindow(handwritingLayer.rect());
+        painter.drawImage(0, 0, handwritingLayer);
     }
 #endif
 }

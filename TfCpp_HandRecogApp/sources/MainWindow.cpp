@@ -6,13 +6,50 @@
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
     scribbleArea = new ScribbleArea;
-    setCentralWidget(scribbleArea);
     createActions();
     createMenus();
+
+    QWidget *widget = new QWidget();
+    QVBoxLayout *mainLayout = new QVBoxLayout(widget);
+    QSizePolicy sizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    scribbleArea->setSizePolicy(sizePolicy);
+    mainLayout->addWidget(scribbleArea);
+
+    createTrainingField(*mainLayout);
+
+    setCentralWidget(widget);
     setWindowTitle(tr("Scribble"));
 }
 
-void MainWindow::addModel(const std::shared_ptr<Model> model) {
+void MainWindow::createTrainingField(QVBoxLayout &mainLayout) {
+    QHBoxLayout *bottomLayout = new QHBoxLayout;
+    button = new QPushButton("Retrain");
+    button->setStyleSheet("background-color: red;");
+    textField = new QLineEdit;
+    QPalette palette;
+    palette.setColor(QPalette::Base,Qt::white);
+    palette.setColor(QPalette::Text,Qt::black);
+    textField->setPalette(palette);
+    QValidator *validator = new QIntValidator(0, 9, this);
+    textField->setValidator(validator);
+    bottomLayout->addStretch(1);
+    textField->setMaximumWidth(100);
+    button->setMaximumWidth(100);
+    bottomLayout->addWidget(textField);
+    bottomLayout->addWidget(button);
+    bottomLayout->addStretch(1);
+    mainLayout.addLayout(bottomLayout);
+    connect(button, SIGNAL (clicked()), this, SLOT (retrain()));
+}
+
+void MainWindow::retrain() {
+    int expectedNumber = textField->text().toInt();
+    textField->clear();
+    scribbleArea->retrain(expectedNumber);
+    scribbleArea->drawTextOnLayer();
+}
+
+void MainWindow::addModel(const shared_ptr<Model> model) {
     scribbleArea->setModel(model);
 }
 
@@ -64,12 +101,12 @@ void MainWindow::createActions() {
     openAct->setShortcut(QKeySequence::Open); // For showing the shortcut
     connect(openAct, SIGNAL(triggered()), this, SLOT(open()));
             foreach(QByteArray format, QImageWriter::supportedImageFormats()) {
-            QString text = tr("%1...").arg(QString(format).toUpper());
-            QAction *action = new QAction(text, this);
-            action->setData(format);
-            connect(action, SIGNAL(triggered()), this, SLOT(save()));
-            saveAsActs.append(action);
-        }
+                QString text = tr("%1...").arg(QString(format).toUpper());
+                QAction *action = new QAction(text, this);
+                action->setData(format);
+                connect(action, SIGNAL(triggered()), this, SLOT(save()));
+                saveAsActs.append(action);
+            }
 
     printAct = new QAction(tr("&Print..."), this);
     connect(printAct, SIGNAL(triggered()), scribbleArea, SLOT(print()));

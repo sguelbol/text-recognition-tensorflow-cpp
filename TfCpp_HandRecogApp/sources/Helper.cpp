@@ -1,4 +1,5 @@
 #include "../headers/Helper.h"
+#include <tensorflow/cc/client/client_session.h>
 
 void Helper::printImageInConsole(Tensor &image) {
     std::cout << image.shape() << std::endl;

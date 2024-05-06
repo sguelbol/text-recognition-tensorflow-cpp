@@ -18,22 +18,26 @@
 
 
 #include <QMainWindow>
+#include <QPushButton>
+#include <QLineEdit>
+#include <QVBoxLayout>
 #include <QList>
 #include "ScribbleArea.h"
 
-class ScribbleArea;
+using namespace std;
 
+class ScribbleArea;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
     MainWindow(QWidget *parent = nullptr);
-    void addModel(const std::shared_ptr<Model> model);
-
+    void addModel(shared_ptr<Model> model);
 
 private:
     void createActions();
     void createMenus();
+    void createTrainingField(QVBoxLayout &mainLayout);
     bool maybeSave();
     bool saveFile(const QByteArray &fileFormat);
     ScribbleArea *scribbleArea;
@@ -57,6 +61,9 @@ private:
     QAction *aboutAct;
     QAction *aboutQtAct;
 
+    QPushButton *button;
+    QLineEdit *textField;
+
 protected:
     void closeEvent(QCloseEvent *event) override;
 
@@ -66,6 +73,7 @@ private slots:
     void penColor();
     void penWidth();
     void about();
+    void retrain();
 
 };
 #endif //MAINWINDOW_H

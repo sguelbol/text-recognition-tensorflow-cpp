@@ -25,6 +25,7 @@ public:
     void train(Tensor imageTensor, Tensor labelTensor, int maxEpochs, float learningRate, int batchSize);
     tuple<Tensor, Tensor> getBatches(int batchSize, const Tensor &images, const Tensor &labels);
     void validate(Tensor imageTensor, Tensor labelTensor);
+    void retrain(Tensor imageTensor, int expectedNumber);
 
 private:
     // Variables

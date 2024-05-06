@@ -90,6 +90,26 @@ Tensor Model::reshapeInput(Tensor inputFeatures) {
     return inputFeatures;
 }
 
+void Model::retrain(Tensor imageTensor, int expectedNumber) {
+    Scope retrainScope = scope.NewSubScope("Retrain");
+    auto onehot = OneHot(retrainScope, {expectedNumber}, Input::Initializer(10), Input::Initializer(1.0f), Input::Initializer(0.0f));
+    vector<Tensor> output;
+    session->Run({onehot}, &output);
+    this->train(imageTensor, output[0], 10, 0.7f, 1);
+}
+
+/**
+ * @brief Prints the details of the model.
+ *
+ * This function outputs the details of the model to the command-line. It prints each layer, followed by the details of each layer in the model.
+ * For each layer, the `printLayer()` method is called to print the details of that layer.
+ *
+ * The `#` characters are used to visually separate the model details.
+ *
+ * @see DenseLayer::printLayer()
+ *
+ * @note This method does not return any data, but only prints the details of the model to the standard output stream.
+ */
 void Model::printModel() {
     std::cout << "#-#-#-#-#-#-#-#-#-#-#-#-#-# " << " Model-Details " << " #-#-#-#-#-#-#-#-#-#-#-#-#-#" << std::endl;
     for (const auto &layer : layers) {

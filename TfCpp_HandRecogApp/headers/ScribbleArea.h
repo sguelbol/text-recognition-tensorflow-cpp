@@ -38,8 +38,7 @@ public:
     bool isModified() const {return modified;}
     QColor penColor() const {return myPenColor;}
     int penWidth() const {return myPenWidth;}
-
-
+    void retrain(int expectedNumber);
 
     public slots:
         void clearImage();
@@ -56,7 +55,8 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
 
 private:
-    std::shared_ptr<Model> model;
+    shared_ptr<Model> model;
+    shared_ptr<Tensor> imageToPredict;
     void drawLineTo(const QPoint &endPoint);
     void resizeImage(QImage *image, const QSize &newSize);
     bool modified;
