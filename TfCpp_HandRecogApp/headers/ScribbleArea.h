@@ -38,7 +38,7 @@ public:
     bool isModified() const {return modified;}
     QColor penColor() const {return myPenColor;}
     int penWidth() const {return myPenWidth;}
-    void retrain(int expectedNumber);
+    void trainOnWrittenChar(int expectedNumber);
 
     public slots:
         void clearImage();
@@ -58,17 +58,27 @@ private:
     shared_ptr<Model> model;
     shared_ptr<Tensor> imageToPredict;
     void drawLineTo(const QPoint &endPoint);
-    void resizeImage(QImage *image, const QSize &newSize);
+    QImage extractWrittenCharacter();
+    void resizeImage(QImage *image, const QSize &newSize, QColor color);
     bool modified;
     bool scribbling;
     QColor myPenColor;
     int myPenWidth;
-    QImage image;
+    QImage textLayer;
+    QImage handwritingLayer;
     QPoint lastPoint;
-    void transformTo28(QImage *letter);
+    cv::Mat transformTo28(QImage *letter);
     cv::Mat QImageToCvMat(const QImage &image);
 
     QImage cvMatToQImage(const cv::Mat &inMat);
+    void convertImageFormat(QImage &image);
+    void makeWhitePixelsTransparent(QImage &image);
+    void makeTransparentPixelsWhite(QImage *image);
+    tensorflow::Tensor createTensorVector(cv::Mat& resizedImage);
+    int predictNumber(tensorflow::Tensor& tensorVector);
+    void drawCharOnTextLayer(int x, int y, int width, int height, int predictedChar);
+    std::tuple<int, int, int, int> calculateDimensionsForExtraction();
+
 };
 
 #endif //SCRIBBLEAREA_H

@@ -42,11 +42,10 @@ void MainWindow::createTrainingField(QVBoxLayout &mainLayout) {
     connect(button, SIGNAL (clicked()), this, SLOT (retrain()));
 }
 
-void MainWindow::retrain() {
+void MainWindow::trainOnWrittenChar() {
     int expectedNumber = textField->text().toInt();
     textField->clear();
-    scribbleArea->retrain(expectedNumber);
-    scribbleArea->drawTextOnLayer();
+    scribbleArea->trainOnWrittenChar(expectedNumber);
 }
 
 void MainWindow::addModel(const shared_ptr<Model> model) {

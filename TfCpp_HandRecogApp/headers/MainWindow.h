@@ -73,7 +73,7 @@ private slots:
     void penColor();
     void penWidth();
     void about();
-    void retrain();
+    void trainOnWrittenChar();
 
 };
 #endif //MAINWINDOW_H

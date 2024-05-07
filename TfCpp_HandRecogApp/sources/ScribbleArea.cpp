@@ -26,10 +26,12 @@ ScribbleArea::ScribbleArea(QWidget *parent) : QWidget(parent)
     scribbling = false;
     myPenWidth = 4;
     myPenColor = Qt::black;
+    handwritingLayer = QImage(this->size(), QImage::Format_ARGB32);
+    textLayer = QImage(this->size(), QImage::Format_ARGB32);
+    handwritingLayer.fill(Qt::white);
+    textLayer.fill(Qt::transparent);
 }
 
-
-// Functions
 
 void ScribbleArea::setModel(const std::shared_ptr<Model> model) {
     this->model = std::move(model);
@@ -41,8 +43,11 @@ bool ScribbleArea::openImage(const QString &fileName) {
         return false;
     }
     QSize newSize = loadedImage.size().expandedTo(size());
-    resizeImage(&loadedImage, newSize);
-    handwritingLayer = loadedImage;
+    resizeImage(&loadedImage, newSize, Qt::white);
+    textLayer = loadedImage;
+    handwritingLayer.fill(Qt::white);
+    convertImageFormat(textLayer);
+    makeWhitePixelsTransparent(textLayer);
     modified = false;
     update();
     return true;
@@ -50,15 +55,14 @@ bool ScribbleArea::openImage(const QString &fileName) {
 
 
 bool ScribbleArea::saveImage(const QString &fileName, const char *fileFormat) {
-    QImage visibleImage = handwritingLayer;
-    qDebug() <<fileFormat;
-    resizeImage(&visibleImage, QSize(400, 400));
+    QImage visibleImage = textLayer;
+    resizeImage(&visibleImage, QSize(width(), height()), Qt::white);
+    makeTransparentPixelsWhite(&visibleImage);
     if (visibleImage.save(fileName, fileFormat)) {
         modified = false;
         return true;
-    } else {
-        return false;
     }
+    return false;
 }
 
 void ScribbleArea::setPenColor(const QColor &newColor) {
@@ -70,7 +74,8 @@ void ScribbleArea::setPenWidth(int newWidth) {
 }
 
 void ScribbleArea::clearImage() {
-    handwritingLayer.fill(qRgb(255, 255, 255));
+    handwritingLayer.fill(Qt::white);
+    textLayer.fill(Qt::transparent);
     modified = true;
     update();
 }
@@ -89,29 +94,9 @@ void ScribbleArea::mousePressEvent(QMouseEvent *event) {
     }
 }
 
-
-void ScribbleArea::keyReleaseEvent(QKeyEvent *event) {
-    qDebug() << "Shift Release 2";
-    if ((event->key() == Qt::Key_Shift) && !(QApplication::mouseButtons() & Qt::LeftButton)) {
-        qDebug() << "Shift Release 3";
-        scribbling = false;
-        //transform(&image);
-        qDebug() << "Release";
-        //hier ausgeben
-        qDebug() << "Inputs:" << inputs;
-        //Code here bounding box
-        //boundingBox();
-        inputs.clear();
-    }
-}
-
 void ScribbleArea::mouseMoveEvent(QMouseEvent *event) {
     if((event->buttons() & Qt::LeftButton) && scribbling) {
         drawLineTo(event->pos());
-
-        //hier sammeln
-        inputs.insert(inputs.end(), {event->pos().x(), event->pos().y()});
-
         if (event->pos().x() < x_min) {
             x_min = event->pos().x();
         }
@@ -129,85 +114,115 @@ void ScribbleArea::mouseMoveEvent(QMouseEvent *event) {
     }
 }
 
+
 void ScribbleArea::mouseReleaseEvent(QMouseEvent *event) {
     if(event->button() == Qt::LeftButton && scribbling) {
         if (!(event->modifiers() & Qt::ShiftModifier)) {
             drawLineTo(event->pos());
             scribbling = false;
-            qDebug() << "Release";
-            qDebug() << inputs;
-            //Code here bounding box
-            //boundingBox();
-            //image.transformed(QTransform)
-
-            int x = x_min-50;
-            int y = y_min-50;
-            int width = x_max-x_min+100;
-            int height = y_max-y_min+100;
-            if ((x+width) > handwritingLayer.width()) {
-                width = handwritingLayer.width()-x;
+            QImage extractedCharacter = extractWrittenCharacter();
+            if (!extractedCharacter.isNull()) {
+                cv::Mat transformed = transformTo28(&extractedCharacter);
+                tensorflow::Tensor handwrittenChar = createTensorVector(transformed);
+                int predictedCharacter = predictNumber(handwrittenChar);
+                extractedCharacter.save(QString("/home/sguelbol/CodeContext/text_recognition_eink/noteApps/freeWritingApp/cmake-build-debug/untitled.png"), "PNG");
+                auto [x, y, width, height] = calculateDimensionsForExtraction();
+                drawCharOnTextLayer(x, y, width, height, predictedCharacter);
             }
-            if (y+height > handwritingLayer.height()) {
-                height = handwritingLayer.height()-y;
-            }
-            if (x < 0) {
-                width = 0;
-            }
-            if (y < 0) {
-                height = 0;
-            }
-            QImage letter = handwritingLayer.copy(x, y, width, height);
-            //handwritingLayer.fill(Qt::white);
-            //update();
-            if (!letter.isNull()) {
-                transformTo28(x, y, width, height, &letter);
-                letter.save(QString("/home/sguelbol/CodeContext/text_recognition_eink/noteApps/freeWritingApp/cmake-build-debug/untitled.png"), "PNG");
-            }
-            inputs.clear();
         }
-
     }
 }
 
-void ScribbleArea::transformTo28(int x, int y, int width, int height, QImage *letter) {
+void ScribbleArea::keyReleaseEvent(QKeyEvent *event) {
+    if ((event->key() == Qt::Key_Shift) && !(QApplication::mouseButtons() & Qt::LeftButton)) {
+        scribbling = false;
+        QImage extractedCharacter = extractWrittenCharacter();
+        if (!extractedCharacter.isNull()) {
+            cv::Mat transformed = transformTo28(&extractedCharacter);
+            tensorflow::Tensor handwrittenChar = createTensorVector(transformed);
+            int predictedCharacter = predictNumber(handwrittenChar);
+            extractedCharacter.save(QString("/home/sguelbol/CodeContext/text_recognition_eink/noteApps/freeWritingApp/cmake-build-debug/untitled.png"), "PNG");
+            auto [x, y, width, height] = calculateDimensionsForExtraction();
+            drawCharOnTextLayer(x, y, width, height, predictedCharacter);
+        }
+    }
+}
+
+QImage ScribbleArea::extractWrittenCharacter() {
+    auto [x, y, width, height] = calculateDimensionsForExtraction();
+    QImage letter = handwritingLayer.copy(x, y, width, height);
+    handwritingLayer.fill(Qt::white);
+    update();
+    return letter;
+}
+
+cv::Mat ScribbleArea::transformTo28(QImage *letter) {
     cv::Mat input = QImageToCvMat(*letter);
     cv::Mat src = cv::Mat(28, 28, CV_8UC3);
     cvtColor(input, src, cv::COLOR_BGR2GRAY);
     cv::Mat resizedImage = cv::Mat(28, 28, CV_8UC3);
-
     cv::resize(src, resizedImage, cv::Size(28, 28), 0,0,cv::INTER_AREA);
     imshow("resized to 28x28", resizedImage);
-
-    if (model) {
-        tensorflow::Tensor tensorVector(tensorflow::DT_FLOAT, tensorflow::TensorShape{1, 784});
-        auto tmap = tensorVector.tensor<float, 2>();
-
-        for (int i = 0; i < resizedImage.rows; ++i) {
-            for (int j = 0; j < resizedImage.cols; ++j) {
-                tmap(0, 28*i+j) = static_cast<float>(resizedImage.at<uchar>(i, j));
-            }
-        }
-        Scope scope = Scope::NewRootScope();
-        ClientSession session(scope);
-        auto div = Sub(scope, 1.0f, Div(scope, tensorVector, {255.f}));
-        vector<Tensor> outputs;
-        TF_CHECK_OK(session.Run({div}, &outputs));
-        imageToPredict = make_shared<Tensor>(outputs[0]);
-        Helper::printImageInConsole(*imageToPredict);
-        Tensor predicted = model->predict(*imageToPredict);
-        Tensor cl = Helper::calculatePredictedClass(predicted);
-        auto int64_num = cl.flat<int64>(); // your code for flat<int64>
-        std::cout << "Predicted number " << cl.flat<int64>()(0) << std::endl;
-        QString numText = QString::number(cl.flat<int64>()(0));
-        QPainter painter(&handwritingLayer);
-        painter.setFont(QFont("Arial", 50)); // Set the font size large enough to fill the ScribbleArea
-        painter.drawText(QRect(x, y, width, height), Qt::AlignCenter, numText);
-        update();
-        cvMatToQImage(resizedImage).save(QString("/home/sguelbol/CodeContext/text_recognition_eink/noteApps/freeWritingApp/cmake-build-debug/transformed.png"), "PNG");
-    }
+    return resizedImage;
 }
 
-void ScribbleArea::retrain(int expectedNumber) {
+tensorflow::Tensor ScribbleArea::createTensorVector(cv::Mat& resizedImage) {
+    tensorflow::Tensor tensorVector(tensorflow::DT_FLOAT, tensorflow::TensorShape{1, 784});
+    auto tmap = tensorVector.tensor<float, 2>();
+    for (int i = 0; i < resizedImage.rows; ++i) {
+        for (int j = 0; j < resizedImage.cols; ++j) {
+            tmap(0, 28*i+j) = static_cast<float>(resizedImage.at<uchar>(i, j));
+        }
+    }
+    return tensorVector;
+}
+
+int ScribbleArea::predictNumber(tensorflow::Tensor& tensorVector) {
+    Scope scope = Scope::NewRootScope();
+    ClientSession session(scope);
+    auto div = Sub(scope, 1.0f, Div(scope, tensorVector, {255.f}));
+    vector<Tensor> outputs;
+    TF_CHECK_OK(session.Run({div}, &outputs));
+    imageToPredict = make_shared<Tensor>(outputs[0]);
+    Helper::printImageInConsole(*imageToPredict);
+    Tensor predicted = model->predict(*imageToPredict);
+    Tensor predictedClass = Helper::calculatePredictedClass(predicted);
+    int predictedChar = predictedClass.flat<int64>()(0); // your code for flat<int64>
+    std::cout << "Predicted char " << predictedChar << std::endl;
+    return predictedChar;
+}
+
+void ScribbleArea::drawCharOnTextLayer(int x, int y, int width, int height, int predictedChar) {
+    QString charText = QString::number(predictedChar);
+    QPainter painter(&textLayer);
+    painter.setFont(QFont("Arial", 50)); // Set the font size large enough to fill the ScribbleArea
+    painter.drawText(QRect(x, y, width, height), Qt::AlignCenter, charText);
+    update();
+}
+
+std::tuple<int, int, int, int> ScribbleArea::calculateDimensionsForExtraction() {
+    const int buffer = 50;
+    int x = x_min - buffer;
+    int y = y_min - buffer;
+    int width = x_max - x + buffer;
+    int height = y_max - y + buffer;
+
+    if ((x + width) > handwritingLayer.width()) {
+        width = handwritingLayer.width() - x;
+    }
+    if (y + height > handwritingLayer.height()) {
+        height = handwritingLayer.height() - y;
+    }
+    if (x < 0) {
+        x = 0;
+    }
+    if (y < 0) {
+        y = 0;
+    }
+    return {x, y, width, height};
+}
+
+void ScribbleArea::trainOnWrittenChar(int expectedNumber) {
     model->retrain(*imageToPredict, expectedNumber);
 }
 
@@ -236,16 +251,13 @@ QImage ScribbleArea::cvMatToQImage(const cv::Mat &inMat) {
 }
 
 void ScribbleArea::boundingBox() {
-    if (x_max > -1) {
-        QPainter painter(&handwritingLayer);
+        QPainter painter(&textLayer);
         painter.setPen(QPen(QColor(Qt::red), 3, Qt::DotLine, Qt::RoundCap, Qt::RoundJoin));
-        QPoint point(x_min-70, y_min-70);
-        //qDebug() << x_min << " y " << y_min;
-        QPoint po(x_max+70, y_max+70);
+        QPoint point(x_min, y_min);
+        QPoint po(x_max, y_max);
         QRect rect1(point, po);
         painter.drawRect(rect1);
         update();
-    }
 }
 
 
@@ -253,15 +265,16 @@ void ScribbleArea::paintEvent(QPaintEvent *event) {
     QPainter painter(this);
     QRect dirtyRect = event->rect();
     painter.drawImage(dirtyRect, handwritingLayer, dirtyRect);
+    painter.drawImage(0, 0, textLayer);
 }
-
 
 
 void ScribbleArea::resizeEvent(QResizeEvent *event) {
     if(width() > handwritingLayer.width() || height() > handwritingLayer.height()) {
         int newWidth = qMax(width() + 128, handwritingLayer.width());
         int newHeight = qMax(height() + 128, handwritingLayer.height());
-        resizeImage(&handwritingLayer, QSize(newWidth, newHeight));
+        resizeImage(&handwritingLayer, QSize(newWidth, newHeight), Qt::white);
+        resizeImage(&textLayer, QSize(newWidth, newHeight), Qt::transparent);
         update();
     }
     QWidget::resizeEvent(event);
@@ -277,20 +290,18 @@ void ScribbleArea::drawLineTo(const QPoint &endPoint) {
     lastPoint = endPoint;
 }
 
-void ScribbleArea::resizeImage(QImage *image, const QSize &newSize) {
+void ScribbleArea::resizeImage(QImage *image, const QSize &newSize, QColor color) {
     if (image->size() == newSize) {
         return;
     }
-
     QImage newImage(newSize, QImage::Format_ARGB32);
-    newImage.fill(qRgb(255, 255, 255));
+    newImage.fill(color);
     QPainter painter(&newImage);
     painter.drawImage(QPoint(0, 0), *image);
     *image = newImage;
 }
 
 void ScribbleArea::transform(QImage *image) {
-    qDebug() << "transform";
     QLabel label;
     label.setPixmap(QPixmap::fromImage(image->transformed(QTransform().scale(2,2))));
     label.show();
@@ -303,11 +314,43 @@ void ScribbleArea::print() {
     if (printDialog.exec() == QDialog::Accepted) {
         QPainter painter(&printer);
         QRect rect = painter.viewport();
-        QSize size = handwritingLayer.size();
+        QSize size = textLayer.size();
         size.scale(rect.size(), Qt::KeepAspectRatio);
         painter.setViewport(rect.x(), rect.y(), size.width(), size.height());
-        painter.setWindow(handwritingLayer.rect());
-        painter.drawImage(0, 0, handwritingLayer);
+        painter.setWindow(textLayer.rect());
+        painter.drawImage(0, 0, textLayer);
     }
 #endif
+}
+
+void ScribbleArea::convertImageFormat(QImage &image) {
+    if(image.format() != QImage::Format_ARGB32 && image.format() != QImage::Format_ARGB32_Premultiplied) {
+        image = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+    }
+}
+
+void ScribbleArea::makeWhitePixelsTransparent(QImage &image) {
+    for(int y = 0 ; y < image.height() ; y++) {
+        for(int x = 0 ; x < image.width() ; x++){
+            QColor color(image.pixel(x,y));
+            // Check for full white, i.e., R=G=B=255 and alpha=255
+            if(color.red() == 255 && color.green() == 255 && color.blue() == 255) {
+                color.setAlpha(0);  // make it transparent
+                image.setPixelColor(x, y, color);
+            }
+        }
+    }
+}
+
+void ScribbleArea::makeTransparentPixelsWhite(QImage *image) {
+    for(int y = 0 ; y < image->height() ; y++) {
+        for(int x = 0 ; x < image->width() ; x++){
+            QColor color(image->pixel(x,y));
+            // Check for full white, i.e., R=G=B=255 and alpha=255
+            if(color.red() == 255 && color.green() == 255 && color.blue() == 255) {
+                color.setAlpha(255);  // make it transparent
+                image->setPixelColor(x, y, color);
+            }
+        }
+    }
 }
