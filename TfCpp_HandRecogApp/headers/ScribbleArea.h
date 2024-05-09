@@ -21,6 +21,14 @@
 #include <QWidget>
 #include <opencv2/opencv.hpp>
 
+/**
+ * @class ScribbleArea
+ * @brief A custom widget for scribbling and processing handwritten characters.
+ *
+ * The ScribbleArea class is a custom QWidget that allows the user to scribble, save, and open images of handwritten characters.
+ * It provides functionality for setting the pen color and width, clearing the image, and printing the image.
+ * The class also includes methods for transforming the image, training on written characters, and predicting the number written.
+ */
 class ScribbleArea : public QWidget
 {
     Q_OBJECT

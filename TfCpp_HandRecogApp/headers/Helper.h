@@ -11,6 +11,10 @@ using namespace std;
 using namespace tensorflow;
 using namespace tensorflow::ops;
 
+/**
+ * @class Helper
+ * @brief A utility class that provides helper functions.
+ */
 class Helper {
 
 public:

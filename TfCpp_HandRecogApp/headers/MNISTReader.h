@@ -9,11 +9,16 @@ using namespace std;
 using namespace tensorflow;
 using namespace tensorflow::ops;
 
+/**
+ * @class MNISTReader
+ * @brief A utility class that  reads the MNIST data and loads it into a tensor.
+ *
+ * */
 class MNISTReader {
 public:
     static bool fileExists(const string& path);
-    static tuple<Tensor, Tensor> ReadMNISTImagesWithTF(Scope &scope, string path, int trainingData, int validationData);
-    static tuple<Tensor, Tensor> ReadMNISTLabelsWithTF(Scope &scope, string path, int trainingData, int validationData);
+    static tuple<Tensor, Tensor> ReadMNISTImages(Scope &scope, string path, int trainingData, int validationData);
+    static tuple<Tensor, Tensor> ReadMNISTLabels(Scope &scope, string path, int trainingData, int validationData);
 };
 
 

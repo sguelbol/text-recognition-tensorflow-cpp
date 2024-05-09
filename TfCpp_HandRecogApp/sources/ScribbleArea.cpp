@@ -177,7 +177,7 @@ tensorflow::Tensor ScribbleArea::createTensorVector(cv::Mat& resizedImage) {
     return tensorVector;
 }
 
-int ScribbleArea::predictNumber(tensorflow::Tensor& tensorVector) {
+int ScribbleArea::predictNumber(Tensor& tensorVector) {
     Scope scope = Scope::NewRootScope();
     ClientSession session(scope);
     auto div = Sub(scope, 1.0f, Div(scope, tensorVector, {255.f}));
@@ -223,7 +223,7 @@ std::tuple<int, int, int, int> ScribbleArea::calculateDimensionsForExtraction() 
 }
 
 void ScribbleArea::trainOnWrittenChar(int expectedNumber) {
-    model->retrain(*imageToPredict, expectedNumber);
+    model->trainOnWrittenChar(*imageToPredict, expectedNumber);
 }
 
 cv::Mat ScribbleArea::QImageToCvMat(const QImage &image) {

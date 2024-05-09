@@ -39,7 +39,7 @@ void MainWindow::createTrainingField(QVBoxLayout &mainLayout) {
     bottomLayout->addWidget(button);
     bottomLayout->addStretch(1);
     mainLayout.addLayout(bottomLayout);
-    connect(button, SIGNAL (clicked()), this, SLOT (retrain()));
+    connect(button, SIGNAL (clicked()), this, SLOT (trainOnWrittenChar()));
 }
 
 void MainWindow::trainOnWrittenChar() {
