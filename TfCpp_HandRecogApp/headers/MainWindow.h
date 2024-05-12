@@ -28,6 +28,17 @@ using namespace std;
 
 class ScribbleArea;
 
+/**
+ * @class MainWindow
+ * @brief The MainWindow class represents the main window of the qt application.
+ *
+ * The MainWindow class inherits from QMainWindow and provides the user interface
+ * for the application. It contains menus, actions, and widgets for various operations,
+ * such as opening, saving, drawing, and training. It also manages interactions with
+ * other classes, such as ScribbleArea and Model.
+ *
+ * @note This class requires the Qt framework to be installed.
+ */
 class MainWindow : public QMainWindow {
     Q_OBJECT
 public:

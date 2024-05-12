@@ -10,6 +10,15 @@ using namespace std;
 using namespace tensorflow;
 using namespace tensorflow::ops;
 
+/**
+ * @class Model
+ *
+ * @brief The Model class represents a neural network model.
+ *        It allows building and training the model, predicting on input data
+ *        and training on a single written character.
+ *
+ * @note The model assumes that the input features are flattened images represented as tensors.
+ */
 class Model {
 public:
     Model(Scope &modelScope);
@@ -17,7 +26,7 @@ public:
 
     // Methods
     void addInputLayer(int inputDim);
-    void addDenseLayer(int neuronsPerLayer, ActivationFunction activationFunction);
+    void addDenseLayer(int numberOfNeurons, ActivationFunction activationFunction);
     void buildModel();
     void printModel();
     Tensor predict(Tensor inputFeatures);
@@ -25,7 +34,7 @@ public:
     void train(Tensor imageTensor, Tensor labelTensor, int maxEpochs, float learningRate, int batchSize);
     tuple<Tensor, Tensor> getBatches(int batchSize, const Tensor &images, const Tensor &labels);
     void validate(Tensor imageTensor, Tensor labelTensor);
-    void retrain(Tensor imageTensor, int expectedNumber);
+    void trainOnWrittenChar(Tensor imageTensor, int expectedNumber);
 
 private:
     // Variables
@@ -39,7 +48,6 @@ private:
     Output model;
 
     // Methods
-    void printOutput(const Tensor& output);
     vector<shared_ptr<Variable>> getAllLayerWeights();
     vector<shared_ptr<Variable>> getAllLayerBiases();
     vector<Output> backpropagation(Scope lossScope, float learningRate, Output loss);

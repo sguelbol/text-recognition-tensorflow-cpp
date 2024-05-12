@@ -36,9 +36,9 @@ int main(int argc, char *argv[]) {
     string const pathTrainingsImages = path + "/dataset/mnist_images.png";
     string const pathTrainingsLabels = path + "/dataset/mnist_labels_uint8";
     Tensor trainingImages, testingImages;
-    tie(trainingImages, testingImages) = MNISTReader::ReadMNISTImagesWithTF(scope, pathTrainingsImages, 40000, 20000);
+    tie(trainingImages, testingImages) = MNISTReader::ReadMNISTImages(scope, pathTrainingsImages, 40000, 20000);
     Tensor trainingLabels, testingLabels;
-    tie(trainingLabels, testingLabels) = MNISTReader::ReadMNISTLabelsWithTF(scope, pathTrainingsLabels, 40000, 20000);
+    tie(trainingLabels, testingLabels) = MNISTReader::ReadMNISTLabels(scope, pathTrainingsLabels, 40000, 20000);
 
 
     mlp->train(trainingImages, trainingLabels, 25, 0.5f, 64);
