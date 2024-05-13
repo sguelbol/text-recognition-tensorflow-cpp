@@ -16,7 +16,7 @@
  *
  * @param modelScope The scope for the model.
  */
-Model::Model(Scope &modelScope) : scope(modelScope), session(std::make_shared<ClientSession>(scope)) {
+Model::Model(Scope &modelScope, Optimizer optimizer) : scope(modelScope), session(std::make_shared<ClientSession>(scope)), optimizer(optimizer) {
 }
 
 /**
@@ -150,7 +150,7 @@ void Model::trainOnWrittenChar(Tensor imageTensor, int expectedNumber) {
     auto onehot = OneHot(retrainScope, {expectedNumber}, Input::Initializer(10), Input::Initializer(1.0f), Input::Initializer(0.0f));
     vector<Tensor> output;
     session->Run({onehot}, &output);
-    this->train(imageTensor, output[0], 10, 0.7f, 1);
+    this->train(imageTensor, output[0], 10, 1);
 }
 
 /**
@@ -195,7 +195,7 @@ void Model::printModel() {
  * @param learningRate The learning rate for the training.
  * @param batchSize The batch size to use for training.
  */
-void Model::train(Tensor imageTensor, Tensor labelTensor, int maxEpochs, float learningRate, int batchSize) {
+void Model::train(Tensor imageTensor, Tensor labelTensor, int maxEpochs, int batchSize) {
     auto start = std::chrono::high_resolution_clock::now();
 
     std::cout << "#-#-#-#-#-#-#-#-#-#-#-#-#-#-# " << " Training " << " #-#-#-#-#-#-#-#-#-#-#-#-#-#-#" << std::endl;
@@ -208,7 +208,7 @@ void Model::train(Tensor imageTensor, Tensor labelTensor, int maxEpochs, float l
     Scope lossScope = scope.NewSubScope("Training");
 
     auto loss = Mean(lossScope.NewSubScope("Loss"), SquaredDifference(lossScope.WithOpName("Sigmoid-Cross-Entropy"), model, *this->labels), {0});
-    std::vector<Output> apply_gradients = this->backpropagation(lossScope,learningRate, loss);
+    std::vector<Output> apply_gradients = this->backpropagation(lossScope, loss);
 
     int dataSize = imageBatches.dim_size(0);
     std::vector<Tensor> outputs;
@@ -250,7 +250,8 @@ void Model::train(Tensor imageTensor, Tensor labelTensor, int maxEpochs, float l
  * @param loss The loss output tensor of the model.
  * @return A vector of output tensors representing the apply gradients operations for the weights and biases.
  */
-std::vector<Output> Model::backpropagation(Scope lossScope, float learningRate, Output loss) {
+std::vector<Output> Model::backpropagation(Scope lossScope, Output loss) {
+    Scope backpropScope = lossScope.NewSubScope("Backpropagation");
     vector<shared_ptr<Variable>> weights = getAllLayerWeights();
     vector<shared_ptr<Variable>> biases = getAllLayerBiases();
     // Combine weights and biases into one vector
@@ -262,16 +263,17 @@ std::vector<Output> Model::backpropagation(Scope lossScope, float learningRate, 
         weights_and_biases.push_back(*b);
     }
     vector<Output> gradients;
-    TF_CHECK_OK(AddSymbolicGradients(lossScope.WithOpName("Gradients"), {loss}, weights_and_biases, &gradients));
+    Scope gradientsScope = backpropScope.NewSubScope("Gradients");
+    TF_CHECK_OK(AddSymbolicGradients(gradientsScope, {loss}, weights_and_biases, &gradients));
+    std::cout << "BrackpopScope: " << &backpropScope << std::endl;
 
     std::vector<Output> apply_gradients;
     for (int i = 0; i < weights.size(); i++) {
-        Output apply_gradient = ApplyGradientDescent(lossScope.WithOpName("Apply-Gradients-W" + std::to_string(i)), *weights[i], Cast(scope, learningRate,  DT_FLOAT), gradients[i]);
-        apply_gradients.push_back(apply_gradient);
-    }
-    for (int i = 0; i < biases.size(); i++) {
-        Output apply_gradient = ApplyGradientDescent(lossScope.WithOpName("Apply-Gradients-B" + std::to_string(i)), *biases[i], Cast(scope, learningRate,  DT_FLOAT), gradients[i + weights.size()]);
-        apply_gradients.push_back(apply_gradient);
+        Scope optimizationScope = backpropScope.NewSubScope("Apply-"+optimizer.getOptimizerType()+"-Optimization-Layer-"+ std::to_string(i));
+        Output apply_weights_optimizer = optimizer.applyOptimizer(*session, optimizationScope, *weights[i], gradients[i], layers[i].get()->getInputDim(), layers[i].get()->getNumberOfNeurons());
+        apply_gradients.push_back(apply_weights_optimizer);
+        Output apply_bias_optimizer = optimizer.applyOptimizer(*session, optimizationScope, *biases[i], gradients[i+weights.size()], 1, layers[i].get()->getNumberOfNeurons());
+        apply_gradients.push_back(apply_bias_optimizer);
     }
     return apply_gradients;
 }

@@ -22,7 +22,9 @@ set(SOURCES sources/Model.cpp
 
 add_executable(TfCpp_HandRecogApp main.cpp ${SOURCES}
         enum/ActivationFunction.h headers/ScribbleArea.h headers/MainWindow.h sources/MainWindow.cpp
-        sources/ScribbleArea.cpp)
+        sources/ScribbleArea.cpp
+        sources/Optimizer.cpp
+        headers/Optimizer.h)
 
 target_link_libraries(TfCpp_HandRecogApp TensorflowCC::TensorflowCC ${OpenCV_LIBS} Qt6::Core Qt6::Gui Qt6::Widgets Qt6::PrintSupport)
 

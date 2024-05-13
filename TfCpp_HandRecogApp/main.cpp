@@ -8,6 +8,7 @@
 
 #include "headers/Model.h"
 #include "headers/Helper.h"
+#include "headers/Optimizer.h"
 #include "headers/MNISTReader.h"
 #include "headers/GraphLogger.h"
 #include "tensorflow/core/framework/tensor.h"
@@ -25,8 +26,9 @@ using namespace std;
 
 int main(int argc, char *argv[]) {
     Scope scope = Scope::NewRootScope();
-    shared_ptr<Model> mlp = make_shared<Model>(scope);
+    shared_ptr<Model> mlp = make_shared<Model>(scope, Optimizer::Momentum(0.09f, 0.9f));
     mlp->addInputLayer(784);
+    mlp->addDenseLayer(64, ActivationFunction::SOFTMAX);
     mlp->addDenseLayer(10, ActivationFunction::SOFTMAX);
     mlp->buildModel();
     mlp->printModel();
@@ -41,7 +43,9 @@ int main(int argc, char *argv[]) {
     tie(trainingLabels, testingLabels) = MNISTReader::ReadMNISTLabels(scope, pathTrainingsLabels, 40000, 20000);
 
 
-    mlp->train(trainingImages, trainingLabels, 25, 0.5f, 64);
+    mlp->train(trainingImages, trainingLabels, 20, 64);
+
+
     mlp->validate(testingImages, testingLabels);
 
     ClientSession session(scope);

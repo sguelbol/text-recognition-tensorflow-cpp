@@ -171,6 +171,17 @@ void DenseLayer::printWeights() {
 }
 
 /**
+ * Retrieves the dimension of input of the DenseLayer.
+ *
+ * This method returns the dimension of input of the DenseLayer.
+ *
+ * @return An integer value representing the dimension of the input in the DenseLayer.
+ */
+int DenseLayer::getInputDim() const {
+    return inputDim;
+}
+
+/**
  * Retrieves the number of neurons of the DenseLayer.
  *
  * This method returns the number of neurons of neurons of the DenseLayer.

@@ -28,6 +28,7 @@ public:
     Output subsequentForwardPass(Output previousLayerOutput);
     void printLayer();
     void printWeights();
+    int getInputDim() const;
     int getNumberOfNeurons() const;
     const shared_ptr<Variable> &getWeights() const;
     const shared_ptr<Variable> &getBiases() const;
