@@ -265,7 +265,6 @@ std::vector<Output> Model::backpropagation(Scope lossScope, Output loss) {
     vector<Output> gradients;
     Scope gradientsScope = backpropScope.NewSubScope("Gradients");
     TF_CHECK_OK(AddSymbolicGradients(gradientsScope, {loss}, weights_and_biases, &gradients));
-    std::cout << "BrackpopScope: " << &backpropScope << std::endl;
 
     std::vector<Output> apply_gradients;
     for (int i = 0; i < weights.size(); i++) {
@@ -310,32 +309,22 @@ std::vector<std::shared_ptr<Variable>> Model::getAllLayerBiases() {
 
 
 /**
- * @brief Generates batches of input images and labels.
+ * @brief Generates batches of images and labels.
  *
- * This function takes in a batch size, and two tensor objects `images` and `labels` representing the full dataset of images and labels.
+ * This function genearetes and returns batches of images and labels in the specified batch size.
  *
- * The function calculates the data set size by retrieving the dimension size of the `images` tensor object.
- * The number of batches, `numBatches`, is determined by dividing the data set size by the batch size.
- * The variable `dataForBatches` is calculated as the product of `numBatches` and `batchSize`.
+ * The total number of batches, `numBatches`, depends on the batch size and the total size of the dataset.
+ * The function only prepares as many data records that completely fit into the batch, all other data records that do
+ * not fit are simply ignored.
  *
- * The `Slice` operation is used to slice the `data` placeholder object based on the range `{0, 0}` to `{dataForBatches, -1}`.
- * The resulting sliced tensor is stored in the `sliced` variable.
+ * At least the tensor of images is reshaped into a 3D tensor with shape `{numBatches, batchSize, -1}`, which compromises
+ * all batches with its images together.
  *
- * The `Reshape` operation is used to flatten the `sliced` tensor into a 2D tensor with shape `{-1}`.
- * The resulting flattened tensor is stored in the `flatten` variable.
- *
- * Another `Reshape` operation is used to reshape the `flatten` tensor into a 3D tensor with shape `{numBatches, batchSize, -1}`.
- * The resulting reshaped tensor representing the batches of images is stored in the `reshapeToBatches` variable.
- *
- * The `session` member variable is used to run the TensorFlow session with two feed dicts:
- * {{data, images}} and {{data, labels}}.
- * The output tensors are stored in the `outputs` vector.
- *
- * Finally, the batch images and batch labels are extracted from the `outputs` vector and returned as a tuple.
+ * Finally, the batches are stored in batchImages and batchLabels and returned as a tuple.
  *
  * @param batchSize The size of each batch.
- * @param images The input tensor object representing the full dataset of images.
- * @param labels The input tensor object representing the full dataset of labels.
+ * @param images The tensor object representing the full dataset of images.
+ * @param labels The tensor object representing the full dataset of labels.
  * @return A tuple containing two Tensor objects: `batchImages` representing the batch of images, and `batchLabels` representing the batch of labels.
  */
 tuple<Tensor, Tensor> Model::getBatches(int batchSize, const Tensor &images, const Tensor &labels) {
