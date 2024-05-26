@@ -207,7 +207,7 @@ void Model::train(Tensor imageTensor, Tensor labelTensor, int maxEpochs, int bat
     std::tie(imageBatches, labelBatches) = getBatches(batchSize, imageTensor, labelTensor);
     Scope lossScope = scope.NewSubScope("Training");
 
-    auto loss = Mean(lossScope.NewSubScope("Loss"), SquaredDifference(lossScope.WithOpName("Sigmoid-Cross-Entropy"), model, *this->labels), {0});
+    Output loss = Mean(lossScope.NewSubScope("Loss"), SquaredDifference(lossScope.WithOpName("Sigmoid-Cross-Entropy"), model, *this->labels), {0});
     std::vector<Output> apply_gradients = this->backpropagation(lossScope, loss);
 
     int dataSize = imageBatches.dim_size(0);
@@ -215,7 +215,6 @@ void Model::train(Tensor imageTensor, Tensor labelTensor, int maxEpochs, int bat
     Tensor imageBatch;
     Tensor labelBatch;
     for (int i = 1; i <= maxEpochs; i++) {
-        vector<Tensor> output1;
         for (int64_t num = 0; num < dataSize; num++) {
             imageBatch = imageBatches.SubSlice(num);
             labelBatch = labelBatches.SubSlice(num);
@@ -255,16 +254,16 @@ std::vector<Output> Model::backpropagation(Scope lossScope, Output loss) {
     vector<shared_ptr<Variable>> weights = getAllLayerWeights();
     vector<shared_ptr<Variable>> biases = getAllLayerBiases();
     // Combine weights and biases into one vector
-    std::vector<Output> weights_and_biases;
+    std::vector<Output> weightsAndBiases;
     for (shared_ptr<Variable> w : weights) {
-        weights_and_biases.push_back(*w);
+        weightsAndBiases.push_back(*w);
     }
     for (shared_ptr<Variable> b : biases) {
-        weights_and_biases.push_back(*b);
+        weightsAndBiases.push_back(*b);
     }
     vector<Output> gradients;
     Scope gradientsScope = backpropScope.NewSubScope("Gradients");
-    TF_CHECK_OK(AddSymbolicGradients(gradientsScope, {loss}, weights_and_biases, &gradients));
+    TF_CHECK_OK(AddSymbolicGradients(gradientsScope, {loss}, weightsAndBiases, &gradients));
 
     std::vector<Output> apply_gradients;
     for (int i = 0; i < weights.size(); i++) {
@@ -336,8 +335,7 @@ tuple<Tensor, Tensor> Model::getBatches(int batchSize, const Tensor &images, con
     int dataForBatches = numBatches * batchSize;
     Placeholder imagePlc(batchesScope, DT_FLOAT, Placeholder::Shape({dataSetSize, -1}));
     auto sliced = Slice(batchesScope, imagePlc, {0, 0}, {dataForBatches, -1});
-    auto flatten = Reshape(batchesScope, sliced, {-1});
-    auto reshapeToBatches = Reshape(batchesScope, flatten, {numBatches, batchSize, -1});
+    auto reshapeToBatches = Reshape(batchesScope, sliced, {numBatches, batchSize, -1});
     vector<Tensor> outputs;
     TF_CHECK_OK(session->Run({{imagePlc, images}}, {reshapeToBatches}, &outputs));
     batchImages = outputs[0];

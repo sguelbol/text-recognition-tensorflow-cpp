@@ -125,7 +125,6 @@ void ScribbleArea::mouseReleaseEvent(QMouseEvent *event) {
                 cv::Mat transformed = transformTo28(&extractedCharacter);
                 tensorflow::Tensor handwrittenChar = createTensorVector(transformed);
                 int predictedCharacter = predictNumber(handwrittenChar);
-                extractedCharacter.save(QString("/home/sguelbol/CodeContext/text_recognition_eink/noteApps/freeWritingApp/cmake-build-debug/untitled.png"), "PNG");
                 auto [x, y, width, height] = calculateDimensionsForExtraction();
                 drawCharOnTextLayer(x, y, width, height, predictedCharacter);
             }
@@ -141,7 +140,6 @@ void ScribbleArea::keyReleaseEvent(QKeyEvent *event) {
             cv::Mat transformed = transformTo28(&extractedCharacter);
             tensorflow::Tensor handwrittenChar = createTensorVector(transformed);
             int predictedCharacter = predictNumber(handwrittenChar);
-            extractedCharacter.save(QString("/home/sguelbol/CodeContext/text_recognition_eink/noteApps/freeWritingApp/cmake-build-debug/untitled.png"), "PNG");
             auto [x, y, width, height] = calculateDimensionsForExtraction();
             drawCharOnTextLayer(x, y, width, height, predictedCharacter);
         }

@@ -1,11 +1,12 @@
 #include "gtest/gtest.h"
 #include "../headers/Model.h"
+#include "../headers/Optimizer.h"
 #include "../enum/ActivationFunction.h"
 
 namespace {
     TEST(ModelTest, TestModel) {
         Scope scope = Scope::NewRootScope();
-        Model mlp = Model(scope);
+        Model mlp = Model(scope, Optimizer::SGD(0.9f));
         mlp.addInputLayer(2);
         mlp.addDenseLayer(2, ActivationFunction::SIGMOID);
         mlp.buildModel();
@@ -35,7 +36,7 @@ namespace {
         }
 
         ClientSession session(scope);
-        mlp.train(features, label, 20000, 0.05f, 8);
+        mlp.train(features, label, 800, 8);
         auto sliceLabel1 = Slice(scope, features, {0, 0}, {1, -1});
         auto sliceLabel2 = Slice(scope, features, {1, 0}, {1, -1});
         auto sliceLabel3 = Slice(scope, features, {2, 0}, {1, -1});

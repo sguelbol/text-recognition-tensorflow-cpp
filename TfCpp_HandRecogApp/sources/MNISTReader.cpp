@@ -38,8 +38,9 @@ tuple<Tensor, Tensor> MNISTReader::ReadMNISTImages(Scope &scope, string path, in
     auto decodedPng = DecodePng(imagePreprocessingScope, file_reader, DecodePng::Channels(0));
     auto float_caster = Cast(imagePreprocessingScope, decodedPng, DT_FLOAT);
     auto reshaped = Reshape(imagePreprocessingScope, float_caster, {-1, 784});
-    auto trainingSet = Div(imagePreprocessingScope, Slice(imagePreprocessingScope, reshaped, {0, 0}, {trainingData, -1}), {255.f});
-    auto testingSet = Div(imagePreprocessingScope, Slice(imagePreprocessingScope, reshaped, {trainingData, 0}, {validationData, -1}), {255.f});
+    auto normalization = Div(imagePreprocessingScope, reshaped, {255.f});
+    auto trainingSet = Slice(imagePreprocessingScope, normalization, {0, 0}, {trainingData, -1});
+    auto testingSet = Slice(imagePreprocessingScope, normalization, {trainingData, 0}, {validationData, -1});
     ClientSession session(imagePreprocessingScope);
     vector<Tensor> outputs;
     TF_CHECK_OK(session.Run({trainingSet, testingSet}, &outputs));
